@@ -385,6 +385,7 @@ resource "azurerm_linux_virtual_machine" "ansible_master" {
   )
 }
 
+## Outputs:
 output "storage_account_name" {
   value = azurerm_storage_account.azure_files.name
 }
@@ -393,4 +394,47 @@ output "file_share_name" {
   value = azurerm_storage_share.shared_data.name
 }
 
-output 
+# Frontend
+output "public_vm_ip" {
+  value = azurerm_public_ip.public_vm_ip.ip_address
+}
+
+# Frontend private IP
+output "public_vm_private_ip" {
+  value = azurerm_network_interface.public_nic.private_ip_address
+}
+
+# Backend1
+output "private_vm_1_ip" {
+  value = azurerm_network_interface.private_nic.private_ip_address
+}
+
+# Backend2
+output "private_vm_2_ip" {
+  value = azurerm_network_interface.private_nic_2.private_ip_address
+}
+
+# Master public IP
+output "ansible_master_ip" {
+  value = azurerm_public_ip.ansible_master_ip.ip_address
+}
+
+# Copy IP addresses to ansible inventory
+resource "local_file" "ansible_inventory" {
+  filename = "${path.module}/../ansible/inventory.ini"
+  content  = <<-EOT
+    [frontend]
+    public-vm ansible_host=${azurerm_public_ip.public_vm_ip.ip_address} ansible_user=${var.username}
+
+    [backend]
+    private-vm-1 ansible_host=${azurerm_network_interface.private_nic.private_ip_address} ansible_user=${var.username}
+    private-vm-2 ansible_host=${azurerm_network_interface.private_nic_2.private_ip_address} ansible_user=${var.username}
+
+    [ansible_master]
+    ansible-master ansible_host=${azurerm_public_ip.ansible_master_ip.ip_address} ansible_user=${var.username}
+
+    [all:vars]
+    ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+    ansible_python_interpreter=/usr/bin/python3
+  EOT
+}
