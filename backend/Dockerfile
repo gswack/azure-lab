@@ -2,6 +2,7 @@
 FROM node:20-alpine
 
 WORKDIR /app
+RUN apk add --no-cache curl
 
 # Layer caching: install deps before copying app code
 COPY package*.json ./
