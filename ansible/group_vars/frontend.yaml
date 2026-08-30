@@ -1,0 +1,7 @@
+---
+container_name: "public-app"
+image_name: "priceapp/public-app"
+image_tag: "latest"
+container_port: 3000
+host_port: 3000
+build_context: "{{ app_dir }}/public-app"

@@ -1,0 +1,10 @@
+---
+# Global variables shared by all hosts
+
+app_repo: "https://github.com/gswack/azure-lab.git"
+app_dir: "/home/azureuser/app"
+
+docker_network: "azure-net"
+
+# EFS/Azure Files mount point (shared storage for backend containers)
+shared_storage_mount: "/mnt/efs"

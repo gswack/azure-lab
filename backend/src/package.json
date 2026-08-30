@@ -1,0 +1,13 @@
+{
+  "name": "private-app",
+  "version": "1.0.0",
+  "description": "Private backend app serving product data",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5"
+  }
+}

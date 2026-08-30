@@ -1,0 +1,64 @@
+---
+- name: Deploy application containers
+  hosts: frontend:backend
+  become: true
+
+  tasks:
+    - name: Clone or update application repository
+      git:
+        repo: "{{ app_repo }}"
+        dest: "{{ app_dir }}"
+        version: main
+        force: true
+      become_user: azureuser
+
+    - name: Stop and remove existing container (if any)
+      docker_container:
+        name: "{{ container_name }}"
+        state: absent
+      ignore_errors: true
+
+    - name: Build Docker image from build context
+      docker_image:
+        name: "{{ image_name }}"
+        tag: "{{ image_tag }}"
+        source: build
+        build:
+          path: "{{ build_context }}"
+        force_source: true
+
+    - name: Run new container
+      docker_container:
+        name: "{{ container_name }}"
+        image: "{{ image_name }}:{{ image_tag }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "{{ host_port }}:{{ container_port }}"
+        env:
+          PORT: "{{ container_port | string }}"
+
+- name: Mount shared storage on backend servers
+  hosts: backend
+  become: true
+
+  tasks:
+    - name: Install nfs-common (needed for Azure Files NFS mounts)
+      apt:
+        name: nfs-common
+        state: present
+
+    - name: Create mount point
+      file:
+        path: "{{ shared_storage_mount }}"
+        state: directory
+        mode: '0755'
+
+    - name: Mount Azure Files NFS share
+      mount:
+        path: "{{ shared_storage_mount }}"
+        src: "{{ storage_account_name }}.file.core.windows.net:/{{ storage_account_name }}/{{ file_share_name }}"
+        fstype: nfs
+        opts: "vers=4,minorversion=1,sec=sys"
+        state: mounted
+      when: storage_account_name is defined and file_share_name is defined
