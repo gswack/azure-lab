@@ -4,7 +4,7 @@ image_name: "priceapp/private-app"
 image_tag: "latest"
 container_port: 3000
 host_port: 3000
-build_context: "{{ app_dir }}/private-app"
+build_context: "{{ app_dir }}/backend"
 
 storage_account_name: "azurefilesforproject"
 file_share_name: "shared-data"

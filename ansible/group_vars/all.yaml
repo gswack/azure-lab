@@ -2,7 +2,7 @@
 # Global variables shared by all hosts
 
 app_repo: "https://github.com/gswack/azure-lab.git"
-app_dir: "/home/azureuser/app"
+app_dir: "/home/azureuser/azure-lab"
 
 docker_network: "azure-net"
 
