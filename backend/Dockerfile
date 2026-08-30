@@ -4,10 +4,10 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Layer caching: install deps before copying app code
-COPY ./src/package*.json ./
+COPY package*.json ./
 RUN npm install --omit=dev
 
-COPY index.js seed-data.json ./
+COPY src/ ./
 
 EXPOSE 3000
 
