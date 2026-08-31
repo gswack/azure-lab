@@ -332,10 +332,6 @@ resource "azurerm_linux_virtual_machine" "public_node" {
   network_interface_ids = [
     azurerm_network_interface.public_nic.id,
   ]
-  //custom_data = base64encode(templatefile("${path.module}/cloud-init-public.yaml", {
-    //  index_js = file("${path.module}/public-app/index.js")
-      //private_key = file("~/.ssh/id_rsa")
-   // }))
 
   admin_ssh_key {
     username   = var.username
@@ -365,11 +361,7 @@ resource "azurerm_linux_virtual_machine" "private_node" {
   network_interface_ids = [
     azurerm_network_interface.private_nic.id,
   ]
-  //custom_data = base64encode(templatefile("${path.module}/cloud-init-private.yaml", {
-    //seed_data = file("${path.module}/private-app/index.js")
-    //seed_json = file("${path.module}/private-app/seed-data.json")
-  //}))
-
+  
    admin_ssh_key {
     username   = var.username
     public_key = file("~/.ssh/id_rsa.pub")

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Products</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        button {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .refresh-button {
+            background-color: #2196f3;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .delete-button {
+            background-color: #f44336;
+            color: white;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        #status {
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .loading {
+            color: #555;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Products</h1>
+
+    <button
+        class="refresh-button"
+        onclick="loadProducts()">
+        🔄 Refresh Products
+    </button>
+
+    <div id="status"></div>
+
+    <table>
+
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody id="products">
+        </tbody>
+
+    </table>
+
+</div>
+
+
+<script>
+
+    // ==========================================
+    // LOAD PRODUCTS
+    // ==========================================
+
+    async function loadProducts() {
+
+        const status = document.getElementById("status");
+        const productsTable = document.getElementById("products");
+
+        status.className = "loading";
+        status.innerHTML = "⏳ Loading products...";
+
+        productsTable.innerHTML = "";
+
+        try {
+
+            const response = await fetch("/api/products");
+
+            if (!response.ok) {
+                throw new Error(
+                    `HTTP error: ${response.status}`
+                );
+            }
+
+            const products = await response.json();
+
+            console.log("📦 Products:", products);
+
+            // No products
+            if (products.length === 0) {
+
+                productsTable.innerHTML = `
+                    <tr>
+                        <td colspan="4">
+                            No products found
+                        </td>
+                    </tr>
+                `;
+
+                status.className = "success";
+                status.innerHTML = "✅ No products";
+
+                return;
+            }
+
+            // Display products
+            products.forEach(product => {
+
+                const row = document.createElement("tr");
+
+                row.innerHTML = `
+                    <td>${product.id}</td>
+                    <td>${product.name}</td>
+                    <td>${product.price}</td>
+                    <td>
+                        <button
+                            class="delete-button"
+                            onclick="deleteProduct(${product.id})">
+                            🗑️ Delete
+                        </button>
+                    </td>
+                `;
+
+                productsTable.appendChild(row);
+            });
+
+            status.className = "success";
+
+            status.innerHTML =
+                `✅ ${products.length} products loaded`;
+
+        } catch (error) {
+
+            console.error("❌ Load products error:", error);
+
+            status.className = "error";
+
+            status.innerHTML =
+                "❌ Failed to load products";
+        }
+    }
+
+
+    // ==========================================
+    // DELETE PRODUCT
+    // ==========================================
+
+    async function deleteProduct(id) {
+
+        const confirmed = confirm(
+            `Are you sure you want to delete product ${id}?`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        const status = document.getElementById("status");
+
+        status.className = "loading";
+        status.innerHTML =
+            `⏳ Deleting product ${id}...`;
+
+        try {
+
+            console.log(
+                `🗑️ Deleting product ${id}...`
+            );
+
+            const response = await fetch(
+                `/api/products/${id}`,
+                {
+                    method: "DELETE"
+                }
+            );
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `HTTP error: ${response.status}`
+                );
+            }
+
+            const result = await response.json();
+
+            console.log(
+                "✅ Delete result:",
+                result
+            );
+
+            status.className = "success";
+
+            status.innerHTML =
+                `✅ Product ${id} deleted successfully`;
+
+            // Reload products from backend
+            await loadProducts();
+
+        } catch (error) {
+
+            console.error(
+                "❌ Delete product error:",
+                error
+            );
+
+            status.className = "error";
+
+            status.innerHTML =
+                `❌ Failed to delete product ${id}`;
+        }
+    }
+
+
+    // ==========================================
+    // INITIAL LOAD
+    // ==========================================
+
+    loadProducts();
+
+</script>
+
+</body>
+
+</html>
