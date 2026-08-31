@@ -124,6 +124,18 @@ resource "azurerm_network_security_group" "nsg_frontend" {
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
+
+  security_rule {
+    name                       = "allow-ssh-from-ansible-master"
+    priority                   = 120
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_application_security_group_ids      = [azurerm_application_security_group.ansible_master_asg.id]
+    destination_address_prefix = "*"
+  }
 }
 
 resource "azurerm_network_security_group" "nsg_ansible_master" {
@@ -481,7 +493,7 @@ resource "local_file" "ansible_inventory" {
   filename = "${path.module}/../ansible/inventory.ini"
   content  = <<-EOT
     [frontend]
-    public-vm ansible_host=${azurerm_public_ip.public_vm_ip.ip_address} ansible_user=${var.username}
+    public-vm ansible_host=${azurerm_public_ip.private_vm_ip.ip_address} ansible_user=${var.username}
 
     [backend]
     private-vm-1 ansible_host=${azurerm_network_interface.private_nic.private_ip_address} ansible_user=${var.username}
