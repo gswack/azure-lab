@@ -1,9 +1,15 @@
+# Variables
 variable "username" {
   default = "azureuser"
 }
 
 variable "size" {
   default = "Standard_B1s"
+}
+
+variable "admin_ip" {
+  description = "Your public IP (with /32) for SSH access"
+  type        = string
 }
 
 terraform {
@@ -90,25 +96,25 @@ resource "azurerm_subnet" "private_subnet" {
 }
 
 # Security Groups
-resource "azurerm_network_security_group" "nsg_public" {
-  name                = "publicSecurityGroup"
+resource "azurerm_network_security_group" "nsg_frontend" {
+  name                = "frontendSecurityGroup"
   location            = azurerm_resource_group.RG.location
   resource_group_name = azurerm_resource_group.RG.name
 
   security_rule {
-    name                       = "test1"
+    name                       = "allow-ssh-from-admin"
     priority                   = 100
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "22"
-    source_address_prefix      = "*"
+    source_address_prefix      = var.admin_ip
     destination_address_prefix = "*"
   }
 
   security_rule {
-    name                       = "test2"
+    name                       = "allow-app-from-internet"
     priority                   = 110
     direction                  = "Inbound"
     access                     = "Allow"
@@ -120,45 +126,95 @@ resource "azurerm_network_security_group" "nsg_public" {
   }
 }
 
-resource "azurerm_network_security_group" "nsg_private" {
-  name                = "privateSecurityGroup"
+resource "azurerm_network_security_group" "nsg_ansible_master" {
+  name                = "ansibleMasterSecurityGroup"
   location            = azurerm_resource_group.RG.location
   resource_group_name = azurerm_resource_group.RG.name
 
   security_rule {
-    name                       = "sr1"
+    name                       = "allow-ssh-from-admin"
     priority                   = 100
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_range     = "3000"
-    source_address_prefix      = "10.0.0.0/25"
+    destination_port_range     = "22"
+    source_address_prefix      = var.admin_ip
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_application_security_group" "frontend_asg" {
+  name                = "frontend-asg"
+  location            = azurerm_resource_group.RG.location
+  resource_group_name = azurerm_resource_group.RG.name
+}
+
+resource "azurerm_application_security_group" "ansible_master_asg" {
+  name                = "ansible-master-asg"
+  location            = azurerm_resource_group.RG.location
+  resource_group_name = azurerm_resource_group.RG.name
+}
+
+resource "azurerm_network_interface_application_security_group_association" "frontend_asg_assoc" {
+  network_interface_id          = azurerm_network_interface.public_nic.id
+  application_security_group_id = azurerm_application_security_group.frontend_asg.id
+}
+
+resource "azurerm_network_interface_application_security_group_association" "ansible_master_asg_assoc" {
+  network_interface_id          = azurerm_network_interface.ansible_master_nic.id
+  application_security_group_id = azurerm_application_security_group.ansible_master_asg.id
+}
+
+resource "azurerm_network_security_group" "nsg_backend" {
+  name                = "backendSecurityGroup"
+  location            = azurerm_resource_group.RG.location
+  resource_group_name = azurerm_resource_group.RG.name
+
+  security_rule {
+    name                                  = "allow-ssh-from-frontend"
+    priority                              = 100
+    direction                             = "Inbound"
+    access                                = "Allow"
+    protocol                              = "Tcp"
+    source_port_range                     = "*"
+    destination_port_range                = "3000"
+    source_application_security_group_ids = [azurerm_application_security_group.frontend_asg.id]
     destination_address_prefix = "*"
   }
 
   security_rule {
-    name                       = "allow-ssh-from-public"
-    priority                   = 110
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "10.0.0.0/25"
+    name                                       = "allow-ssh-from-ansible-master"
+    priority                                   = 110
+    direction                                  = "Inbound"
+    access                                     = "Allow"
+    protocol                                   = "Tcp"
+    source_port_range                          = "*"
+    destination_port_range                     = "22"
+    source_application_security_group_ids      = [azurerm_application_security_group.ansible_master_asg.id]
     destination_address_prefix = "*"
   }
 }
 
 # Subnet-level association
-resource "azurerm_subnet_network_security_group_association" "public" {
-  subnet_id                 = azurerm_subnet.public_subnet.id
-  network_security_group_id = azurerm_network_security_group.nsg_public.id
+resource "azurerm_network_interface_security_group_association" "public_nic_nsg" {
+  network_interface_id     = azurerm_network_interface.public_nic.id
+  network_security_group_id = azurerm_network_security_group.nsg_frontend.id
 }
 
-resource "azurerm_subnet_network_security_group_association" "private" {
-  subnet_id                 = azurerm_subnet.private_subnet.id
-  network_security_group_id = azurerm_network_security_group.nsg_private.id
+resource "azurerm_network_interface_security_group_association" "ansible_master_nic_nsg" {
+  network_interface_id     = azurerm_network_interface.ansible_master_nic.id
+  network_security_group_id = azurerm_network_security_group.nsg_ansible_master.id
+}
+
+resource "azurerm_network_interface_security_group_association" "private_nic_nsg" {
+  network_interface_id     = azurerm_network_interface.private_nic.id
+  network_security_group_id = azurerm_network_security_group.nsg_backend.id
+}
+
+resource "azurerm_network_interface_security_group_association" "private_nic_2_nsg" {
+  network_interface_id     = azurerm_network_interface.private_nic_2.id
+  network_security_group_id = azurerm_network_security_group.nsg_backend.id
 }
 
 # Route Table
@@ -202,6 +258,7 @@ resource "azurerm_public_ip" "ansible_master_ip" {
   sku                 = "Standard"
 }
 
+# Admin IP
 resource "azurerm_network_interface" "ansible_master_nic" {
   name                = "ansible-master-nic"
   location            = azurerm_resource_group.RG.location
@@ -258,8 +315,8 @@ resource "azurerm_linux_virtual_machine" "public_node" {
   name                  = "public-vm"
   resource_group_name = azurerm_resource_group.RG.name
   location              = azurerm_resource_group.RG.location
-  size                = "${var.size}"
-  admin_username      = "${var.username}"
+  size                = var.size
+  admin_username      = var.username
   network_interface_ids = [
     azurerm_network_interface.public_nic.id,
   ]
@@ -269,7 +326,7 @@ resource "azurerm_linux_virtual_machine" "public_node" {
    // }))
 
   admin_ssh_key {
-    username   = "${var.username}"
+    username   = var.username
     public_key = file("~/.ssh/id_rsa.pub")
   }
 
@@ -291,8 +348,8 @@ resource "azurerm_linux_virtual_machine" "private_node" {
   name                  = "private-vm"
   resource_group_name = azurerm_resource_group.RG.name
   location              = azurerm_resource_group.RG.location
-  size                = "${var.size}"
-  admin_username      = "${var.username}"
+  size                = var.size
+  admin_username      = var.username
   network_interface_ids = [
     azurerm_network_interface.private_nic.id,
   ]
@@ -302,7 +359,7 @@ resource "azurerm_linux_virtual_machine" "private_node" {
   //}))
 
    admin_ssh_key {
-    username   = "${var.username}"
+    username   = var.username
     public_key = file("~/.ssh/id_rsa.pub")
   }
 
@@ -331,7 +388,7 @@ resource "azurerm_linux_virtual_machine" "private_node2" {
   ]
 
    admin_ssh_key {
-    username   = "${var.username}"
+    username   = var.username
     public_key = file("~/.ssh/id_rsa.pub")
   }
 

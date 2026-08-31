@@ -7,8 +7,8 @@ const PORT = 3000;
 
 // Private backend servers
 const PRIVATE_APIS = [
-    "http://10.0.0.132:3000"
-    // "http://10.0.0.156:3000"
+    "http://10.0.0.132:3000",
+    "http://10.0.0.133:3000"
 ];
 
 app.use(express.json());
